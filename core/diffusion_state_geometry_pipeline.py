@@ -5,6 +5,7 @@ from diffusers import DiffusionPipeline
 from diffusers import DDPMPipeline, DDIMPipeline, DDPMScheduler
 
 import os
+
 from os.path import join
 import PIL.Image
 import numpy as np
@@ -31,7 +32,7 @@ model_id_short = model_id.split("/")[-1]
 saveroot = rf"F:\insilico_exps\Diffusion_traj\{model_id_short}"
 # load model and scheduler
 pipe = DDIMPipeline.from_pretrained(model_id)  # you can replace DDPMPipeline with DDIMPipeline or PNDMPipeline for faster inference
-pipe.unet.requires_grad_(False).eval().to("cuda")#.half()
+pipe.unet.requires_grad_(False).eval().to("mps")#.half()
 #%%
 # run pipeline in inference (sample random noise and denoise)
 image = pipe()
@@ -52,6 +53,7 @@ out = pipe(callback=save_latents, num_inference_steps=tsteps,
 out.images[0].show()
 latents_reservoir = torch.cat(latents_reservoir, dim=0)
 #%%
+saveroot = f"~/diffusion_traj/{model_id_short}"
 savedir = join(saveroot, f"seed{seed}")
 os.makedirs(savedir, exist_ok=True)
 torch.save(latents_reservoir, join(savedir, "state_reservoir.pt"))

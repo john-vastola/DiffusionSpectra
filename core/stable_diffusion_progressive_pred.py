@@ -24,7 +24,11 @@ pipe = StableDiffusionPipeline.from_pretrained(
     revision="fp16",
     torch_dtype=torch.float16,
 )
-pipe = pipe.to("cuda")
+# pipe = StableDiffusionPipeline.from_pretrained(
+#     "runwayml/stable-diffusion-v1-5",
+#     torch_dtype=torch.float32,
+# )
+pipe = pipe.to("mps")
 pipe.enable_attention_slicing()
 pipe.text_encoder.requires_grad_(False)
 pipe.unet.requires_grad_(False)
@@ -175,7 +179,8 @@ def SD_sampler(
             latent_model_input = pipe.scheduler.scale_model_input(latent_model_input, t)
 
             # predict the noise residual
-            noise_pred = pipe.unet(latent_model_input, t, encoder_hidden_states=text_embeddings).sample
+            with torch.autocast('cuda'):
+                noise_pred = pipe.unet(latent_model_input, t, encoder_hidden_states=text_embeddings).sample
 
             # perform guidance
             if do_classifier_free_guidance:
@@ -231,6 +236,8 @@ if platform.system() == "Windows":
     saveroot = r"F:\insilico_exps\Diffusion_traj\StableDiffusion"
 elif platform.system() == "Linux":
     saveroot = r"/home/binxuwang/insilico_exp/Diffusion_traj/StableDiffusion"
+elif platform.system() == "Darwin":
+    saveroot = f"~/diffusion_traj/{'StableDiffusion'}"
 else:
     raise RuntimeError("Unknown system")
 
@@ -268,7 +275,7 @@ for prompt, dirname in prompt_dir_pair:
         pred_z0 = (latents_traj[:-1] -
                    residue_traj * (1 - alphacum_traj).sqrt().view(-1, 1, 1, 1)) / \
                   alphacum_traj.sqrt().view(-1, 1, 1, 1)
-        img_traj = latents_to_image(pred_z0[:, 0].half().to('cuda'), pipe, batch_size=11)
+        img_traj = latents_to_image(pred_z0[:, 0].to('mps'), pipe, batch_size=11)
         save_imgrid(img_traj, join(savedir, "proj_z0_vae_decode.png"), nrow=10, )
         #%%
         mean_fin = latents_traj[-1].mean()
@@ -311,5 +318,5 @@ for prompt, dirname in prompt_dir_pair:
         ldm_PCA_data_visualize(noise_text_traj, pipe, U, D, V, savedir, topcurv_num=8, topImg_num=8, prefix="noise_text_traj")
         torch.save({"expvar": expvar_noise, "U": U_noise, "D": D_noise, "V": V_noise}, join(savedir, "noise_text_PCA.pt"))
         plt.close("all")
-    #     break
-    # break
+        break
+    break

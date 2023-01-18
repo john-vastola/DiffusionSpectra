@@ -28,38 +28,39 @@ from core.diffusion_traj_analysis_lib import compute_save_diff_imgs_diff, plot_d
 # model_id = "google/ddpm-ema-celebahq-256"
 model_id = "google/ddpm-celebahq-256" # most popular
 # model_id = "google/ddpm-cifar10-32"
-model_id = "dimpo/ddpm-mnist"  # most popular
+# model_id = "dimpo/ddpm-mnist"  # most popular
 model_id_short = model_id.split("/")[-1]
-saveroot = rf"F:\insilico_exps\Diffusion_traj\{model_id_short}"
+# saveroot = rf"F:\insilico_exps\Diffusion_traj\{model_id_short}"
+saveroot = f"~/diffusion_traj/{model_id_short}"
 # load model and scheduler
 pipe = DDIMPipeline.from_pretrained(model_id)  # you can replace DDPMPipeline with DDIMPipeline or PNDMPipeline for faster inference
-pipe.unet.requires_grad_(False).eval().to("cuda")#.half()
+pipe.unet.requires_grad_(False).eval().to("mps")#.half()
 
 #%%
 import matplotlib
 matplotlib.use('Agg')
 # use the interactive backend
 
-# matplotlib.use('module://backend_interagg')
-#%%
-# save image
-# image[0].save("ddpm_generated_image.png")
-seed = 99
-
-# for seed in range(200, 400):
-latents_reservoir = []
-t_traj = []
-
-@torch.no_grad()
-def save_latents(i, t, latents):
-    latents_reservoir.append(latents.detach().cpu())
-    t_traj.append(t)
-
-tsteps = 51
-out = pipe(callback=save_latents, num_inference_steps=tsteps,
-           generator=torch.cuda.manual_seed(seed))
-latents_reservoir = torch.cat(latents_reservoir, dim=0)
-t_traj = torch.tensor(t_traj)
+matplotlib.use('module://backend_interagg')
+# #%%
+# # save image
+# # image[0].save("ddpm_generated_image.png")
+# seed = 99
+#
+# # for seed in range(200, 400):
+# latents_reservoir = []
+# t_traj = []
+#
+# @torch.no_grad()
+# def save_latents(i, t, latents):
+#     latents_reservoir.append(latents.detach().cpu())
+#     t_traj.append(t)
+#
+# tsteps = 51
+# out = pipe(callback=save_latents, num_inference_steps=tsteps,
+#            generator=torch.cuda.manual_seed(seed))
+# latents_reservoir = torch.cat(latents_reservoir, dim=0)
+# t_traj = torch.tensor(t_traj)
 
 #%%
 def sampling(unet, scheduler, batch_size=1, generator=None):
@@ -93,6 +94,8 @@ alphacum_traj = pipe.scheduler.alphas_cumprod[t_traj]
 pred_x0 = (sample_traj[:-1] - residual_traj * (1 - alphacum_traj).sqrt().view(-1, 1, 1, 1)) / alphacum_traj.sqrt().view(-1, 1, 1, 1)
 #%%
 show_imgrid((pred_x0 + 1)/2, nrow=10, figsize=(10, 10))
+#%%
+show_imgrid(denorm_sample_std(pred_x0[1:] - pred_x0[:-1]), nrow=10, figsize=(10, 10))
 #%%
 
 def denorm_sample_mean_std(x):
